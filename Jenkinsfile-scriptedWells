@@ -1,0 +1,42 @@
+node{
+    def mavenHome = tool name:'maven3.8.6'
+  stage('1cloneCode'){
+    git "https://github.com/Neizeen2022/tesla-app.git"
+    }
+    
+  stage('2Test&Build'){
+    sh "${mavenHome}/bin/mvn clean package"  
+  }
+  
+  stage('3CodeQuality'){
+    sh "${mavenHome}/bin/mvn sonar:sonar"  
+  }
+  
+  stage('4UploadArtifacts'){
+    sh "${mavenHome}/bin/mvn deploy"  
+  }
+  
+  
+  stage('5deploy2UAT'){
+    sh "echo 'deploy to UAT' "
+    deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials', path: '', url: 'http://3.93.220.185:8080')], contextPath: null, war: 'target/*war'
+  }
+  
+  stage('6approvalGate'){
+    sh "echo 'ready for Review' "
+    timeout(time:5, unit:'DAYS'){
+    input message: 'Applcation ready for Deployment, Please review'    
+  }
+  
+  }
+  
+  stage('7deploy2prod'){
+    sh "sleep 50"
+    deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials', path: '', url: 'http://3.93.220.185:8080')], contextPath: null, war: 'target/*war'
+  }
+  
+  stage('8emailNotification'){
+    emailext body: 'Hi Team', recipientProviders: [buildUser(), developers(), requestor(), contributor()], subject: 'Deploy Review', to: 'wellsfargoapp.com'  
+  }
+  
+}
